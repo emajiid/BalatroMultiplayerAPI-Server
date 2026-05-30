@@ -58,7 +58,7 @@ interface DisconnectedSlot {
 class Lobby {
 	code: string;
 	host: Client | null;
-	guest: Client | null;
+	players: Client[] = [];
 	gameMode: GameMode;
 	// biome-ignore lint/suspicious/noExplicitAny:
 	options: { [key: string]: any };
@@ -66,7 +66,7 @@ class Lobby {
     handyAllowMPExtension: Map<string, boolean>;
 	firstReadyAt: number | null;
 	/** Tracks disconnected players awaiting reconnection */
-	disconnectedSlot: DisconnectedSlot | null = null;
+	disconnectedSlots: DisconnectedSlot[] | null = null;
 	/** Whether a game is currently in progress */
 	isInGame = false;
 
@@ -78,7 +78,6 @@ class Lobby {
 		Lobbies.set(this.code, this);
 
 		this.host = host;
-		this.guest = null;
 		this.gameMode = gameMode;
 		this.options = {};
 		this.tcgBets = new Map();
@@ -102,31 +101,30 @@ class Lobby {
 	/** Voluntary leave — no grace period */
 	leave = (client: Client) => {
 		// Clear any pending reconnect slot for this lobby
-		if (this.disconnectedSlot) {
-			clearTimeout(this.disconnectedSlot.timer);
-			this.disconnectedSlot = null;
-		}
 
-		if (this.host?.id === client.id) {
-			this.host = this.guest;
-			this.guest = null;
-		} else if (this.guest?.id === client.id) {
-			this.guest = null;
+		if (this.host?.id === client.id) { // If the host exists and they are the one leaving
+			// Make the guest the new host
+			if (this.players.length != 0){
+				this.host = this.players.pop() ?? null;
+			}else{
+				this.host = null;
+			}
+		} else { // If a player leaves then just remove them
+			for (const player of this.players){
+				if(player?.id === client.id){
+					this.players = this.players.filter(select_player => select_player !== player);
+				}
+			}
 		}
 
 		client.setLobby(null);
 		this.isInGame = false;
 
 		// Check if anyone is still in the lobby
-		const remaining = this.host ?? this.guest;
-		if (!remaining) {
+		if (!this.host) {
 			Lobbies.delete(this.code);
 		} else {
 			// Promote guest to host if needed
-			if (!this.host && this.guest) {
-				this.host = this.guest;
-				this.guest = null;
-			}
             this.handyAllowMPExtension.delete(client.id)
 
 			// TODO: Refactor for more than 2 players
@@ -140,7 +138,7 @@ class Lobby {
 	/** Connection lost — use grace period if game is in progress */
 	disconnect = (client: Client) => {
 		const isHost = this.host?.id === client.id;
-		const isGuest = this.guest?.id === client.id;
+	/*	const isGuest = this.guest?.id === client.id;
 		if (!isHost && !isGuest) return;
 
 		// If no game in progress or no other player, do a regular leave
@@ -190,7 +188,7 @@ class Lobby {
 		client.setLobby(null);
 
 		// Notify the remaining player with the grace period so they can show a countdown
-		enemy?.sendAction({ action: "enemyDisconnected", timeout: RECONNECT_GRACE_PERIOD / 1000 });
+		enemy?.sendAction({ action: "enemyDisconnected", timeout: RECONNECT_GRACE_PERIOD / 1000 });*/
 	};
 
 	/** Reconnecting client reclaims their slot */
