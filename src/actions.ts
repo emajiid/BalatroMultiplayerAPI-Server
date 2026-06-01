@@ -10,10 +10,10 @@ export type ActionLobbyInfo = {
 	host: string
 	hostHash: string
 	hostCached: boolean
-	guest?: string
-	guestHash?: string
-	guestCached?: boolean
-	guestReady?: boolean
+	players?: string
+	/*playersHash?: string
+	playersCached?: string
+	playersReady?: string*/
 	isHost: boolean
 }
 export type ActionStopGame = { action: 'stopGame' }

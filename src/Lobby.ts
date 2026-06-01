@@ -58,6 +58,7 @@ interface DisconnectedSlot {
 class Lobby {
 	code: string;
 	host: Client | null;
+	guest: Client | null;
 	players: Client[] = [];
 	gameMode: GameMode;
 	// biome-ignore lint/suspicious/noExplicitAny:
@@ -66,7 +67,7 @@ class Lobby {
     handyAllowMPExtension: Map<string, boolean>;
 	firstReadyAt: number | null;
 	/** Tracks disconnected players awaiting reconnection */
-	disconnectedSlots: DisconnectedSlot[] | null = null;
+	disconnectedSlot: DisconnectedSlot | null = null;
 	/** Whether a game is currently in progress */
 	isInGame = false;
 
@@ -78,6 +79,7 @@ class Lobby {
 		Lobbies.set(this.code, this);
 
 		this.host = host;
+		this.guest = null;
 		this.gameMode = gameMode;
 		this.options = {};
 		this.tcgBets = new Map();
@@ -244,15 +246,13 @@ class Lobby {
 	};
 
 	join = (client: Client) => {
-		if (this.guest) {
-			client.sendAction({
-				action: "error",
-				message: "Lobby is full or does not exist.",
-			});
-			return;
-		}
+		/*client.sendAction({
+			action: "error",
+			message: "Lobby is full or does not exist.",
+		});
+		return;*/
 
-		this.guest = client;
+		this.players.push(client);
 
 		client.setLobby(this);
 		client.isReadyLobby = false;
@@ -269,7 +269,9 @@ class Lobby {
 
 	broadcastAction = (action: ActionServerToClient) => {
 		this.host?.sendAction(action);
-		this.guest?.sendAction(action);
+		for (const player of this.players){
+			player.sendAction(action);
+		}
 	};
 
 	broadcastLobbyInfo = () => {
@@ -285,12 +287,19 @@ class Lobby {
 			hostCached: this.host.isCached,
 		};
 
-		if (this.guest?.username) {
-			action.guest = this.guest.username;
-			action.guestHash = this.guest.modHash;
-			action.guestCached = this.guest.isCached;
-			action.guestReady = this.guest.isReadyLobby;
-			this.guest.sendAction(action);
+		if (this.players.length > 0) {
+			action.players = "";
+
+			for (const player of this.players){
+				var current_player_data = `username-${player.username}>hash-${player.modHash}>cached-${String(player.isCached)}>ready-${String(player.isReadyLobby)}|`;
+				action.players += current_player_data;
+			}
+		}
+
+		//action.players = "hello";
+
+		for (const player of this.players){
+			player.sendAction(action);
 		}
 
 		// Should only sent true to the host
