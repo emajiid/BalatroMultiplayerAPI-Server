@@ -89,6 +89,7 @@ class Lobby {
 		host.setLobby(this);
 		host.isReadyLobby = false;
 		host.sendAction({
+			id: host.id,
 			action: "joinedLobby",
 			code: this.code,
 			type: this.gameMode,
@@ -259,6 +260,7 @@ class Lobby {
         this.handyAllowMPExtension.set(client.id, false)
 		client.sendAction({
 			action: "joinedLobby",
+			id: client.id,
 			code: this.code,
 			type: this.gameMode,
 			reconnectToken: client.reconnectToken,
@@ -291,7 +293,7 @@ class Lobby {
 			action.players = "";
 
 			for (const player of this.players){
-				var current_player_data = `username-${player.username}>hash-${player.modHash}>cached-${String(player.isCached)}>ready-${String(player.isReadyLobby)}|`;
+				var current_player_data = `id-${player.id}>username-${player.username}>hash-${player.modHash}>cached-${String(player.isCached)}>ready-${String(player.isReadyLobby)}|`;
 				action.players += current_player_data;
 			}
 		}
