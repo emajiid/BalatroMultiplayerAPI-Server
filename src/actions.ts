@@ -37,8 +37,8 @@ export type ActionPlayerInfo = { action: 'playerInfo'; lives: number }
 export type ActionEnemyInfo = {
 	action: 'enemyInfo'
 	id: string
-	score: string
 	handsLeft: number
+	score: string
 	skips: number
 	lives: number
 }

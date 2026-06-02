@@ -261,7 +261,7 @@ const playHandAction = (
 	enemy.sendAction({
 		action: "enemyInfo",
 		id: client.id,
-		handsLeft,
+		handsLeft: handsLeft,
 		score: client.score.toString(),
 		skips: client.skips,
 		lives: client.lives,
