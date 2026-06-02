@@ -21,12 +21,13 @@ const generateUniqueLobbyCode = (): string => {
 export const getEnemy = (client: Client): [Lobby | null, Client | null] => {
 	const lobby = client.lobby
 	if (!lobby) return [null, null]
-	if (lobby.host?.id === client.id) {
+	return [lobby, lobby.matchups[client.id]]
+	/*if (lobby.host?.id === client.id) {
 		return [lobby, lobby.guest]
 	} else if (lobby.guest?.id === client.id) {
 		return [lobby, lobby.host]
 	}
-	return [lobby, null]
+	return [lobby, null]*/
 }
 
 /** How long to keep a disconnected player's slot reserved (ms) */
@@ -60,6 +61,7 @@ class Lobby {
 	host: Client | null;
 	guest: Client | null;
 	players: Client[] = [];
+	matchups: Record<string, Client | null> = {};
 	gameMode: GameMode;
 	// biome-ignore lint/suspicious/noExplicitAny:
 	options: { [key: string]: any };
@@ -284,6 +286,7 @@ class Lobby {
 		const action: ActionLobbyInfo = {
 			action: "lobbyInfo",
 			host: this.host.username,
+			hostId: this.host.id,
 			hostHash: this.host.modHash,
 			isHost: false,
 			hostCached: this.host.isCached,
@@ -317,7 +320,9 @@ class Lobby {
 	setPlayersLives = (lives: number) => {
 		// TODO: Refactor for more than 2 players
 		if (this.host) this.host.lives = lives;
-		if (this.guest) this.guest.lives = lives;
+		for (const player of this.players){
+			player.lives = lives;
+		}
 
 		this.broadcastAction({ action: "playerInfo", lives });
 	};
@@ -357,12 +362,12 @@ class Lobby {
 			this.host.furthestBlind = 0;
 			this.host.skips = 0;
 		}
-		if (this.guest) {
-			this.guest.isReady = false;
-			this.guest.resetBlocker();
-			this.guest.setLocation("Blind Select");
-			this.guest.furthestBlind = 0;
-			this.guest.skips = 0;
+		for (const player of this.players){
+			player.isReady = false;
+			player.resetBlocker();
+			player.setLocation("Blind Select");
+			player.furthestBlind = 0;
+			player.skips = 0;
 		}
 		this.tcgBets.clear();
 		this.firstReadyAt = null;

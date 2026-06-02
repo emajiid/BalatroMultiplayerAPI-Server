@@ -121,6 +121,39 @@ const keepAliveAction = (client: Client) => {
 	client.sendAction({ action: "keepAliveAck" });
 };
 
+/**
+ * Takes an array of items (players) and groups them randomly into pairs.
+ * If there is an odd number of players, the last item remains a single element.
+ */
+function generateOpponentMap(players: Client[]): Record<string, Client | null> {
+    // 1. Shallow copy and scramble the player pool
+    const shuffled = [...players];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    
+    // 2. Initialize our empty record wrapper
+    const opponents: Record<string, Client | null> = {};
+    
+    // 3. Pair them up
+    for (let i = 0; i < shuffled.length; i += 2) {
+        const playerA = shuffled[i];
+        const playerB = shuffled[i + 1]; // This will be undefined if odd total count
+        
+        if (playerB) {
+            // Perfect match: Point them directly at each other
+            opponents[playerA.id] = playerB;
+            opponents[playerB.id] = playerA;
+        } else {
+            // Odd player out: No opponent this round
+            opponents[playerA.id] = null;
+        }
+    }
+    
+    return opponents;
+}
+
 const startGameAction = (client: Client) => {
 	const lobby = client.lobby;
 
@@ -152,9 +185,12 @@ const startGameAction = (client: Client) => {
 	// Reset players' lives
 	lobby.setPlayersLives(lives);
 
+	//set Matchups
+	lobby.matchups = generateOpponentMap([...lobby.players, lobby.host])
+
 	// Unready guest for next game
-	if (lobby.guest) {
-		lobby.guest.isReadyLobby = false;
+	for (const player of lobby.players){
+		player.isReadyLobby = false;
 	}
 };
 
@@ -210,8 +246,7 @@ const playHandAction = (
 	if (
 		lobby === null ||
 		enemy === null ||
-		lobby.host === null ||
-		lobby.guest === null
+		lobby.host === null
 	) {
 		stopGameAction(client);
 		return;
@@ -225,6 +260,7 @@ const playHandAction = (
 
 	enemy.sendAction({
 		action: "enemyInfo",
+		id: client.id,
 		handsLeft,
 		score: client.score.toString(),
 		skips: client.skips,
@@ -233,44 +269,46 @@ const playHandAction = (
 
 	// This info is only sent on a boss blind, so it shouldn't
 	// affect other blinds
-	if (
-		(lobby.guest.handsLeft < 1 &&
-			lobby.guest.score.lessThan(lobby.host.score)) ||
-		(lobby.host.handsLeft < 1 &&
-			lobby.host.score.lessThan(lobby.guest.score)) ||
-		(lobby.host.handsLeft < 1 && lobby.guest.handsLeft < 1)
-	) {
-		const roundWinner = lobby.guest.score.lessThan(lobby.host.score)
-			? lobby.host
-			: lobby.guest;
-		const roundLoser =
-			roundWinner.id === lobby.host.id ? lobby.guest : lobby.host;
+	if (enemy != null){
+		if (
+			(enemy.handsLeft < 1 &&
+				enemy.score.lessThan(client.score)) ||
+			(client.handsLeft < 1 &&
+				client.score.lessThan(enemy.score)) ||
+			(client.handsLeft < 1 && enemy.handsLeft < 1)
+		) {
+			const roundWinner = enemy.score.lessThan(client.score)
+				? client
+				: enemy;
+			const roundLoser =
+				roundWinner.id === client.id ? enemy : client;
 
-		if (!lobby.host.score.equalTo(lobby.guest.score)) {
-			roundLoser.loseLife();
+			if (!client.score.equalTo(enemy.score)) {
+				roundLoser.loseLife();
 
-			// If no lives are left, we end the game
-			if (lobby.host.lives <= 0 || lobby.guest.lives <= 0) {
-				const gameWinner =
-					lobby.host.lives > lobby.guest.lives ? lobby.host : lobby.guest;
-				const gameLoser =
-					gameWinner.id === lobby.host.id ? lobby.guest : lobby.host;
+				// If no lives are left, we end the game
+				if (client.lives <= 0 || enemy.lives <= 0) {
+					const gameWinner =
+						client.lives > enemy.lives ? client : enemy;
+					const gameLoser =
+						gameWinner.id === client.id ? enemy : client;
 
-				gameWinner?.sendAction({ action: "winGame" });
-				gameLoser?.sendAction({ action: "loseGame" });
-				roundWinner.firstReady = false;
-				roundLoser.firstReady = false;
-				return;
+					gameWinner?.sendAction({ action: "winGame" });
+					gameLoser?.sendAction({ action: "loseGame" });
+					roundWinner.firstReady = false;
+					roundLoser.firstReady = false;
+					return;
+				}
 			}
-		}
 
-		roundWinner.firstReady = false;
-		roundLoser.firstReady = false;
-		roundWinner.sendAction({ action: "endPvP", lost: false });
-		roundLoser.sendAction({
-			action: "endPvP",
-			lost: !lobby.guest.score.equalTo(lobby.host.score),
-		});
+			roundWinner.firstReady = false;
+			roundLoser.firstReady = false;
+			roundWinner.sendAction({ action: "endPvP", lost: false });
+			roundLoser.sendAction({
+				action: "endPvP",
+				lost: !enemy.score.equalTo(client.score),
+			});
+		}
 	}
 };
 
@@ -465,6 +503,7 @@ const skipAction = (
 	if (!lobby || !enemy) return;
 	enemy.sendAction({
 		action: "enemyInfo",
+		id: client.id,
 		handsLeft: client.handsLeft,
 		score: client.score.toString(),
 		skips: client.skips,

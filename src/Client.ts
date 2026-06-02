@@ -55,9 +55,16 @@ class Client {
 		this.location = location
 		if (this.lobby) {
 			if (this.lobby.host === this) {
-				this.lobby.guest?.sendAction({ action: "enemyLocation", location: this.location })
+				for (const player of this.lobby.players){
+					player.sendAction({ action: "enemyLocation", id: this.id,location: this.location })
+				}
 			} else {
-				this.lobby.host?.sendAction({ action: "enemyLocation", location: this.location })
+				this.lobby.host?.sendAction({ action: "enemyLocation", id: this.id,location: this.location })
+				for (const player of this.lobby.players){
+					if (player != this){
+						player.sendAction({ action: "enemyLocation", id: this.id,location: this.location })
+					}
+				}
 			}
 		}
 	}
@@ -89,6 +96,7 @@ class Client {
 				const enemy = this.lobby.host === this ? this.lobby.guest : this.lobby.host
 				enemy.sendAction({
 					action: "enemyInfo",
+					id: this.id,
 					handsLeft: this.handsLeft,
 					score: this.score.toString(),
 					skips: this.skips,

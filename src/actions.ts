@@ -8,6 +8,7 @@ export type ActionEnemyReconnected = { action: 'enemyReconnected' }
 export type ActionLobbyInfo = {
 	action: 'lobbyInfo'
 	host: string
+	hostId: string
 	hostHash: string
 	hostCached: boolean
 	players?: string
@@ -35,6 +36,7 @@ export type ActionGameInfo = {
 export type ActionPlayerInfo = { action: 'playerInfo'; lives: number }
 export type ActionEnemyInfo = {
 	action: 'enemyInfo'
+	id: string
 	score: string
 	handsLeft: number
 	skips: number
@@ -43,7 +45,7 @@ export type ActionEnemyInfo = {
 export type ActionEndPvP = { action: 'endPvP'; lost: boolean, pvpTimerLost?: boolean }
 export type ActionLobbyOptions = { action: 'lobbyOptions', gamemode: string }
 export type ActionRequestVersion = { action: 'version' }
-export type ActionEnemyLocation = { action: 'enemyLocation'; location: string }
+export type ActionEnemyLocation = { action: 'enemyLocation'; id: string; location: string }
 export type ActionSendPhantom = { action: 'sendPhantom', key: string }
 export type ActionRemovePhantom = { action: 'removePhantom', key: string }
 export type ActionSpeedrun = { action: 'speedrun' }
